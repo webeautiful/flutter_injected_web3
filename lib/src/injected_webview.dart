@@ -293,8 +293,7 @@ class InjectedWebview extends StatefulWidget {
       onReceivedLoginRequest;
   final Future<String> Function(InAppWebViewController controller,
       JsTransactionObject data, int chainId)? signTransaction;
-  final Future<String> Function(
-          InAppWebViewController controller, String data, int chainId)?
+  final Future<String> Function(InAppWebViewController controller, String data)?
       signPersonalMessage;
   final Future<String> Function(
       InAppWebViewController controller, String data, int chainId)? signMessage;
@@ -302,7 +301,7 @@ class InjectedWebview extends StatefulWidget {
       JsEthSignTypedData data, int chainId)? signTypedMessage;
   final Future<String> Function(InAppWebViewController controller,
       JsEcRecoverObject data, int chainId)? ecRecover;
-  final Future<IncomingAccountsModel> Function(
+  final Future<IncomingAccountsModel?> Function(
           InAppWebViewController controller, String data, int chainId)?
       requestAccounts;
   final Future<String> Function(
@@ -501,8 +500,9 @@ class _InjectedWebviewState extends State<InjectedWebview> {
                     final data = JsDataModel.fromJson(jsData.object ?? {});
 
                     widget.signPersonalMessage
-                        ?.call(controller, data.data ?? "", widget.chainId)
+                        ?.call(controller, data.data ?? "")
                         .then((signedData) {
+                      if (signedData.isEmpty) return;
                       _sendResult(
                           controller, "ethereum", signedData, jsData.id ?? 0);
                     }).onError((e, stackTrace) {
@@ -579,10 +579,15 @@ class _InjectedWebviewState extends State<InjectedWebview> {
               case 'eth_requestAccounts':
                 {
                   try {
-                    debugPrint(widget.requestAccounts.toString());
                     widget.requestAccounts
                         ?.call(controller, "", widget.chainId)
                         .then((signedData) async {
+                      if (signedData == null) {
+                        String callback =
+                            "window.ethereum.sendResponse(${jsData.id}, [])";
+                        await _sendCustomResponse(controller, callback);
+                        return;
+                      }
                       final setAddress =
                           "window.ethereum.setAddress(\"${signedData.address}\");";
                       address = signedData.address!;
@@ -706,7 +711,7 @@ class _InjectedWebviewState extends State<InjectedWebview> {
   String _loadInitJs(int chainId, String rpcUrl) {
     String source = '''
         (function() {
-            var config = {                
+            var config = {
                 ethereum: {
                     chainId: $chainId,
                     rpcUrl: "$rpcUrl"
@@ -719,7 +724,14 @@ class _InjectedWebviewState extends State<InjectedWebview> {
             trustwallet.ethereum = new trustwallet.Provider(config);
             trustwallet.solana = new trustwallet.SolanaProvider(config);
             trustwallet.postMessage = (json) => {
-                window._tw_.postMessage(JSON.stringify(json));
+                // window._tw_.postMessage(JSON.stringify(json));
+                console.log('trustwallet.postMessage=>', json)
+                if (window._tw_) {
+                  window._tw_.postMessage(JSON.stringify(json));
+                } else if(window.flutter_inappwebview.callHandler) {
+                  // @params - eg. {id: 0, name: 'signMessage', object: { chainId: 56 }, network: 'BSC'}
+                  window.flutter_inappwebview.callHandler('_tw_', json)
+                }
             }
             window.ethereum = trustwallet.ethereum;
         })();
@@ -731,7 +743,7 @@ class _InjectedWebviewState extends State<InjectedWebview> {
     String source = '''
         (function() {
           if(window.ethereum == null){
-            var config = {                
+            var config = {
                 ethereum: {
                     chainId: $chainId,
                     rpcUrl: "$rpcUrl",
@@ -745,7 +757,14 @@ class _InjectedWebviewState extends State<InjectedWebview> {
             trustwallet.ethereum = new trustwallet.Provider(config);
             trustwallet.solana = new trustwallet.SolanaProvider(config);
             trustwallet.postMessage = (json) => {
-                window._tw_.postMessage(JSON.stringify(json));
+                // window._tw_.postMessage(JSON.stringify(json));
+                console.log('trustwallet.postMessage=>', json)
+                if (window._tw_) {
+                  window._tw_.postMessage(JSON.stringify(json));
+                } else if(window.flutter_inappwebview.callHandler) {
+                  // @params - eg. {id: 0, name: 'signMessage', object: { chainId: 56 }, network: 'BSC'}
+                  window.flutter_inappwebview.callHandler('_tw_', json)
+                }
             }
             window.ethereum = trustwallet.ethereum;
           }
