@@ -1,50 +1,6 @@
 import 'package:example2/main.dart';
 import 'package:flutter/material.dart';
 
-class CustomDialog extends StatelessWidget {
-  const CustomDialog({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: <Widget>[
-        _buildRaisedButton(context),
-        _buildDialog(),
-      ],
-    );
-  }
-
-  Widget _buildDialog() => const Dialog(
-        backgroundColor: Colors.white,
-        elevation: 5,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(10))),
-        child: SizedBox(
-          width: 50,
-          child: MyDialog(
-            title: 'Dialog Title',
-            content: 'Dialog Content',
-          ),
-        ),
-      );
-
-  Widget _buildRaisedButton(BuildContext context) => ElevatedButton(
-        style: TextButton.styleFrom(
-          backgroundColor: Colors.blue,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(10)),
-          ),
-        ),
-        onPressed: () {
-          showDialog(context: context, builder: (ctx) => _buildDialog());
-        },
-        child: const Text(
-          'Just Show It !',
-          style: TextStyle(color: Colors.white),
-        ),
-      );
-}
-
 class MyDialog extends StatelessWidget {
   const MyDialog({
     super.key,

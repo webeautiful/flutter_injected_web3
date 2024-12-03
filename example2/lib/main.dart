@@ -101,7 +101,11 @@ class MainApp extends StatelessWidget {
 
   Future<String> handleSignPersonalMessage(
       InAppWebViewController _, data) async {
-    final message = utf8.decode(hexToBytes(data));
+    final text = utf8.decode(hexToBytes(data));
+    final message = """
+      消息: $text \n
+      数据: $data
+      """;
     final result = await MyDialog.showConfirm(title: '请求签名', content: message);
     if (!result) return '';
     final password = await MyDialog.showInput();
@@ -114,7 +118,21 @@ class MainApp extends StatelessWidget {
 
   Future<String> handleSignTransaction(
       InAppWebViewController _, JsTransactionObject data, int chainId) async {
-    return "0x45fb0060681bf5d8ea675ab0b3f76aa15c84b172f2fb3191b7a8ceb1e6a7f372";
+    if (data.data == null) {
+      // ETH交易
+      return processEthTransaction(data, chainId);
+    } else if (data.data!.startsWith('0xa9059cbb') &&
+        data.data!.length >= 138) {
+      // Token交易
+      return processTokenTransaction(data, chainId);
+    } else if (data.data!.startsWith('0x095ea7b3') &&
+        data.data!.length >= 106) {
+      // 交易授权
+      return processTransactionApprove(data, chainId);
+    } else {
+      // 合约交互
+      return processContractInteraction(data, chainId);
+    }
   }
 
   Future<String> handleChangeNetwork(InAppWebViewController controller,
@@ -126,6 +144,106 @@ class MainApp extends StatelessWidget {
       debugPrint("$e");
     }
     return rpc;
+  }
+
+  // 交易确认处理逻辑
+  double calcGasFee(String gasLimitHex, String gasPriceHex) {
+    int gasLimit = int.parse(gasLimitHex.substring(2), radix: 16);
+    int gasPrice = int.parse(gasPriceHex.substring(2), radix: 16);
+    BigInt gasFee = BigInt.from(gasLimit) * BigInt.from(gasPrice);
+    return gasFee / BigInt.from(10).pow(18);
+  }
+
+  Future<String> processEthTransaction(
+      JsTransactionObject data, int chainId) async {
+    double amount = BigInt.parse(data.value ?? '') / BigInt.from(10).pow(18);
+    data.nonce = '0x3d';
+    data.gasLimit = '0x5208';
+    data.gasPrice = '0x2e2aa94fd';
+    final message = """
+        网络费: ${calcGasFee(data.gasLimit!, data.gasPrice!)} ETH \n
+        从: ${data.from} \n
+        至: ${data.to} \n
+        交易数额: $amount ETH
+      """;
+    final result = await MyDialog.showConfirm(title: 'ETH交易', content: message);
+    if (!result) return '';
+    final password = await MyDialog.showInput();
+    if (password == null) return '';
+    if (password != '123') return '';
+    const privateKey =
+        '8ae0bfd5f1b40fc450077f702bfe152bf0d7ac53849d032cd55f4699a559fff8';
+    return await TokenHelper.signEthTransaction(privateKey, chainId, data);
+  }
+
+  Future<String> processTokenTransaction(
+      JsTransactionObject data, int chainId) async {
+    data.nonce = '0x3d';
+    data.gasLimit = '0xea60';
+    data.gasPrice = '0x22417c411';
+    String recipient = "0x${data.data!.substring(34, 74)}";
+    BigInt decimalValue =
+        BigInt.parse(data.data!.substring(74, 138), radix: 16);
+    double amount = decimalValue / BigInt.from(10).pow(18);
+    final message = """
+        网络费: 0.0000023 ETH \n
+        从: ${data.from} \n
+        转账地址: $recipient \n
+        转账金额: $amount DAI\n
+        数据: ${data.data}
+      """;
+    final result =
+        await MyDialog.showConfirm(title: 'Token交易', content: message);
+    if (!result) return '';
+    final password = await MyDialog.showInput();
+    if (password == null) return '';
+    if (password != '123') return '';
+    const privateKey =
+        '8ae0bfd5f1b40fc450077f702bfe152bf0d7ac53849d032cd55f4699a559fff8';
+    return await TokenHelper.signEthTokenTransaction(privateKey, chainId, data);
+  }
+
+  Future<String> processTransactionApprove(
+      JsTransactionObject data, int chainId) async {
+    String spender = "0x${data.data!.substring(34, 74)}";
+    int allowance = int.parse(data.data!.substring(74, 138), radix: 16);
+    final message = """
+        网络费: ${calcGasFee(data.gasLimit!, data.gasPrice!)} ETH \n
+        从: ${data.from} \n
+        授权地址: $spender \n
+        授权数额: $allowance \n
+        数据: ${data.data}
+      """;
+    final result =
+        await MyDialog.showConfirm(title: '请求Token授权', content: message);
+    if (!result) return '';
+    final password = await MyDialog.showInput();
+    if (password == null) return '';
+    if (password != '123') return '';
+    const privateKey =
+        '8ae0bfd5f1b40fc450077f702bfe152bf0d7ac53849d032cd55f4699a559fff8';
+    // TODO: 授权签名
+    return '';
+  }
+
+  Future<String> processContractInteraction(
+      JsTransactionObject data, int chainId) async {
+    final message = """
+        网络费: 0.0000023 ETH \n
+        从: ${data.from} \n
+        合约地址: ${data.to} \n
+        交易数额: ${data.value} ETH\n
+        数据: ${data.data}
+      """;
+    final result = await MyDialog.showConfirm(title: '合约交互', content: message);
+    if (!result) return '';
+    final password = await MyDialog.showInput();
+    if (password == null) return '';
+    if (password != '123') return '';
+    const privateKey =
+        '8ae0bfd5f1b40fc450077f702bfe152bf0d7ac53849d032cd55f4699a559fff8';
+    // TODO: 合约交互签名
+    return '';
   }
 }
 

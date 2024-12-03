@@ -482,6 +482,7 @@ class _InjectedWebviewState extends State<InjectedWebview> {
                     widget.signTransaction
                         ?.call(controller, data, widget.chainId)
                         .then((signedData) {
+                      if (signedData.isEmpty) return;
                       _sendResult(
                           controller, "ethereum", signedData, jsData.id ?? 0);
                     }).onError((e, stackTrace) {
