@@ -316,15 +316,3 @@ class DappModel {
     title = jsonStr["nameLang"] ?? "";
   }
 }
-
-class EthereumConfig {
-  final String address;
-  final int chainId;
-  final String rpcUrl;
-
-  EthereumConfig({
-    required this.address,
-    required this.chainId,
-    required this.rpcUrl,
-  });
-}
