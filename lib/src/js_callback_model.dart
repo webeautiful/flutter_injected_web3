@@ -160,9 +160,9 @@ class JsAddEthereumChain {
 }
 
 class IncomingAccountsModel {
-  int? chainId;
-  String? rpcUrl;
-  String? address;
+  late int chainId;
+  late String rpcUrl;
+  late String address;
 
   IncomingAccountsModel({
     required this.chainId,

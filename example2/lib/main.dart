@@ -12,7 +12,7 @@ void main() {
   runApp(MaterialApp(
     title: 'demo',
     navigatorKey: navigatorKey, // 设置全局 Navigator
-    home: MainApp(),
+    home: const MainApp(),
   ));
 }
 
@@ -20,16 +20,51 @@ BuildContext getGlobalContext() {
   return navigatorKey.currentState!.context;
 }
 
-// ignore: must_be_immutable
-class MainApp extends StatelessWidget {
-  MainApp({super.key});
-  final chainId = 137;
-  // final chainId = 56;
-  String rpc = "https://polygon.llamarpc.com";
-  // String rpc = "https://bsc-dataseed1.binance.org";
+class MainApp extends StatefulWidget {
+  const MainApp({super.key});
+
+  @override
+  MainAppState createState() => MainAppState();
+}
+
+class MainAppState extends State<MainApp> {
+  late Map<int, IncomingAccountsModel> supportedNetworks;
+  late IncomingAccountsModel currentNetwork;
 
   DappModel dappModel = DappModel(
       'https://0xzx.com/wp-content/uploads/2021/05/20210530-19.jpg', 'Unknown');
+
+  @override
+  void initState() {
+    final List<IncomingAccountsModel> ethereumConfigs = [
+      IncomingAccountsModel(
+        address: '0x389e8305cA85c153e0CA4f36E460bD0D63db8158',
+        chainId: 137,
+        rpcUrl: 'https://polygon.llamarpc.com',
+      ),
+      IncomingAccountsModel(
+        address: '0x389e8305cA85c153e0CA4f36E460bD0D63db8158',
+        chainId: 1,
+        rpcUrl: 'https://ethereum-rpc.publicnode.com',
+      ),
+      IncomingAccountsModel(
+        address: "0x389e8305cA85c153e0CA4f36E460bD0D63db8158",
+        chainId: 56,
+        rpcUrl: "https://bsc-dataseed1.binance.org",
+      ),
+      IncomingAccountsModel(
+        address: '0x389e8305cA85c153e0CA4f36E460bD0D63db8158',
+        chainId: 97,
+        rpcUrl: 'https://data-seed-prebsc-1-s3.binance.org:8545',
+      )
+    ];
+    supportedNetworks = {
+      for (var config in ethereumConfigs) config.chainId: config,
+    };
+
+    currentNetwork = ethereumConfigs[0];
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,14 +78,14 @@ class MainApp extends StatelessWidget {
         signTransaction: handleSignTransaction,
         addEthereumChain: handleChangeNetwork,
         isDebug: true,
-        initialUrlRequest: URLRequest(
-          url: WebUri('https://0xsequence.github.io/demo-dapp-web3modal'),
-        ), //https://pancakeswap.finance/
         // initialUrlRequest: URLRequest(
-        //   url: WebUri('http://localhost:4000'),
-        // ),
-        chainId: chainId,
-        rpc: rpc,
+        //   url: WebUri('https://appkit-lab.reown.com/library/ethers-all/'),
+        // ), //https://pancakeswap.finance/
+        initialUrlRequest: URLRequest(
+          url: WebUri('https://0xsequence.github.io/demo-dapp-web3modal/'),
+        ),
+        chainId: currentNetwork.chainId,
+        rpc: currentNetwork.rpcUrl,
         onLoadStop: (controller, url) async {
           if (url == null) return;
           String baseUrl = url.origin;
@@ -79,7 +114,7 @@ class MainApp extends StatelessWidget {
     );
   }
 
-  Future<IncomingAccountsModel?> handleRequestAccounts(
+  Future<IncomingAccountsModel> handleRequestAccounts(
       InAppWebViewController _, String ___, int __) async {
     final result = await MyDialog.showConfirm(
       title: '申请授权',
@@ -90,13 +125,9 @@ class MainApp extends StatelessWidget {
         """,
     );
     if (!result) {
-      return null;
+      throw 'Request Canceled!';
     }
-    return IncomingAccountsModel(
-      address: "0x389e8305cA85c153e0CA4f36E460bD0D63db8158",
-      chainId: chainId,
-      rpcUrl: rpc,
-    );
+    return currentNetwork;
   }
 
   Future<String> handleSignPersonalMessage(
@@ -107,10 +138,11 @@ class MainApp extends StatelessWidget {
       数据: $data
       """;
     final result = await MyDialog.showConfirm(title: '请求签名', content: message);
-    if (!result) return '';
+    if (!result) {
+      throw 'Signature Request Canceled!';
+    }
     final password = await MyDialog.showInput();
-    if (password == null) return '';
-    if (password != '123') return '';
+    if (password != '123') throw 'Signature failure';
     const privateKey =
         '8ae0bfd5f1b40fc450077f702bfe152bf0d7ac53849d032cd55f4699a559fff8';
     return TokenHelper.signPersonalMessage(privateKey, data);
@@ -137,16 +169,15 @@ class MainApp extends StatelessWidget {
 
   Future<String> handleChangeNetwork(InAppWebViewController controller,
       JsAddEthereumChain data, int chainId) async {
-    try {
-      rpc = "https://rpc.ankr.com/eth";
-      chainId = int.parse(data.chainId!);
-    } catch (e) {
-      debugPrint("$e");
+    final toChainId = int.parse(data.chainId!);
+    if (supportedNetworks[toChainId] == null) {
+      throw '不支持该网络';
     }
-    return rpc;
+    currentNetwork = supportedNetworks[chainId]!;
+    return currentNetwork.rpcUrl;
   }
 
-  // 交易确认处理逻辑
+  // 交易确认处理逻辑 //
   double calcGasFee(String gasLimitHex, String gasPriceHex) {
     int gasLimit = int.parse(gasLimitHex.substring(2), radix: 16);
     int gasPrice = int.parse(gasPriceHex.substring(2), radix: 16);
@@ -157,27 +188,32 @@ class MainApp extends StatelessWidget {
   Future<String> processEthTransaction(
       JsTransactionObject data, int chainId) async {
     double amount = BigInt.parse(data.value ?? '') / BigInt.from(10).pow(18);
+    data.from = currentNetwork.address;
     data.nonce = '0x3d';
-    data.gasLimit = '0x5208';
-    data.gasPrice = '0x2e2aa94fd';
+    data.gasLimit = '0xea60';
+    data.gasPrice = '0x22417c411';
     final message = """
+        icon: ${dappModel.icon}\n
+        title: ${dappModel.title}\n
         网络费: ${calcGasFee(data.gasLimit!, data.gasPrice!)} ETH \n
         从: ${data.from} \n
         至: ${data.to} \n
         交易数额: $amount ETH
       """;
     final result = await MyDialog.showConfirm(title: 'ETH交易', content: message);
-    if (!result) return '';
+    if (!result) {
+      throw 'Signature Request Canceled!';
+    }
     final password = await MyDialog.showInput();
-    if (password == null) return '';
-    if (password != '123') return '';
+    if (password != '123') throw 'Signature failure';
     const privateKey =
         '8ae0bfd5f1b40fc450077f702bfe152bf0d7ac53849d032cd55f4699a559fff8';
-    return await TokenHelper.signEthTransaction(privateKey, chainId, data);
+    return TokenHelper.signEthTransaction(privateKey, chainId, data);
   }
 
   Future<String> processTokenTransaction(
       JsTransactionObject data, int chainId) async {
+    data.from = currentNetwork.address;
     data.nonce = '0x3d';
     data.gasLimit = '0xea60';
     data.gasPrice = '0x22417c411';
@@ -186,7 +222,9 @@ class MainApp extends StatelessWidget {
         BigInt.parse(data.data!.substring(74, 138), radix: 16);
     double amount = decimalValue / BigInt.from(10).pow(18);
     final message = """
-        网络费: 0.0000023 ETH \n
+        icon: ${dappModel.icon}\n
+        title: ${dappModel.title}\n
+        网络费: ${calcGasFee(data.gasLimit!, data.gasPrice!)} ETH \n
         从: ${data.from} \n
         转账地址: $recipient \n
         转账金额: $amount DAI\n
@@ -194,20 +232,27 @@ class MainApp extends StatelessWidget {
       """;
     final result =
         await MyDialog.showConfirm(title: 'Token交易', content: message);
-    if (!result) return '';
+    if (!result) {
+      throw 'Signature Request Canceled!';
+    }
     final password = await MyDialog.showInput();
-    if (password == null) return '';
-    if (password != '123') return '';
+    if (password != '123') throw 'Signature failure';
     const privateKey =
         '8ae0bfd5f1b40fc450077f702bfe152bf0d7ac53849d032cd55f4699a559fff8';
-    return await TokenHelper.signEthTokenTransaction(privateKey, chainId, data);
+    return TokenHelper.signEthTransaction(privateKey, chainId, data);
   }
 
   Future<String> processTransactionApprove(
       JsTransactionObject data, int chainId) async {
+    data.from = currentNetwork.address;
+    data.nonce = '0x3d';
+    data.gasLimit = '0xea60';
+    data.gasPrice = '0x22417c411';
     String spender = "0x${data.data!.substring(34, 74)}";
     int allowance = int.parse(data.data!.substring(74, 138), radix: 16);
     final message = """
+        icon: ${dappModel.icon}\n
+        title: ${dappModel.title}\n
         网络费: ${calcGasFee(data.gasLimit!, data.gasPrice!)} ETH \n
         从: ${data.from} \n
         授权地址: $spender \n
@@ -216,19 +261,21 @@ class MainApp extends StatelessWidget {
       """;
     final result =
         await MyDialog.showConfirm(title: '请求Token授权', content: message);
-    if (!result) return '';
+    if (!result) {
+      throw 'Signature Request Canceled!';
+    }
     final password = await MyDialog.showInput();
-    if (password == null) return '';
-    if (password != '123') return '';
+    if (password != '123') throw 'Signature failure';
     const privateKey =
         '8ae0bfd5f1b40fc450077f702bfe152bf0d7ac53849d032cd55f4699a559fff8';
-    // TODO: 授权签名
-    return '';
+    return TokenHelper.signEthTransaction(privateKey, chainId, data);
   }
 
   Future<String> processContractInteraction(
       JsTransactionObject data, int chainId) async {
     final message = """
+        icon: ${dappModel.icon}\n
+        title: ${dappModel.title}\n
         网络费: 0.0000023 ETH \n
         从: ${data.from} \n
         合约地址: ${data.to} \n
@@ -236,14 +283,14 @@ class MainApp extends StatelessWidget {
         数据: ${data.data}
       """;
     final result = await MyDialog.showConfirm(title: '合约交互', content: message);
-    if (!result) return '';
+    if (!result) {
+      throw 'Signature Request Canceled!';
+    }
     final password = await MyDialog.showInput();
-    if (password == null) return '';
-    if (password != '123') return '';
+    if (password != '123') throw 'Signature failure';
     const privateKey =
         '8ae0bfd5f1b40fc450077f702bfe152bf0d7ac53849d032cd55f4699a559fff8';
-    // TODO: 合约交互签名
-    return '';
+    return TokenHelper.signEthTransaction(privateKey, chainId, data);
   }
 }
 
@@ -268,4 +315,16 @@ class DappModel {
     icon = jsonStr["icon"] ?? "";
     title = jsonStr["nameLang"] ?? "";
   }
+}
+
+class EthereumConfig {
+  final String address;
+  final int chainId;
+  final String rpcUrl;
+
+  EthereumConfig({
+    required this.address,
+    required this.chainId,
+    required this.rpcUrl,
+  });
 }

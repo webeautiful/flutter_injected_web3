@@ -301,7 +301,7 @@ class InjectedWebview extends StatefulWidget {
       JsEthSignTypedData data, int chainId)? signTypedMessage;
   final Future<String> Function(InAppWebViewController controller,
       JsEcRecoverObject data, int chainId)? ecRecover;
-  final Future<IncomingAccountsModel?> Function(
+  final Future<IncomingAccountsModel> Function(
           InAppWebViewController controller, String data, int chainId)?
       requestAccounts;
   final Future<String> Function(
@@ -503,7 +503,6 @@ class _InjectedWebviewState extends State<InjectedWebview> {
                     widget.signPersonalMessage
                         ?.call(controller, data.data ?? "")
                         .then((signedData) {
-                      if (signedData.isEmpty) return;
                       _sendResult(
                           controller, "ethereum", signedData, jsData.id ?? 0);
                     }).onError((e, stackTrace) {
@@ -583,15 +582,9 @@ class _InjectedWebviewState extends State<InjectedWebview> {
                     widget.requestAccounts
                         ?.call(controller, "", widget.chainId)
                         .then((signedData) async {
-                      if (signedData == null) {
-                        String callback =
-                            "window.ethereum.sendResponse(${jsData.id}, [])";
-                        await _sendCustomResponse(controller, callback);
-                        return;
-                      }
                       final setAddress =
                           "window.ethereum.setAddress(\"${signedData.address}\");";
-                      address = signedData.address!;
+                      address = signedData.address;
                       String callback =
                           "window.ethereum.sendResponse(${jsData.id}, [\"${signedData.address}\"])";
                       await _sendCustomResponse(controller, setAddress);
@@ -601,16 +594,16 @@ class _InjectedWebviewState extends State<InjectedWebview> {
                       SharedPreferences prefs =
                           await SharedPreferences.getInstance();
                       await prefs.setString(
-                          'account_address_$currentURL', signedData.address!);
+                          'account_address_$currentURL', signedData.address);
 
                       if (widget.chainId != signedData.chainId) {
                         final initString = _addChain(
-                            signedData.chainId!,
-                            signedData.rpcUrl!,
-                            signedData.address!,
+                            signedData.chainId,
+                            signedData.rpcUrl,
+                            signedData.address,
                             widget.isDebug);
-                        widget.chainId = signedData.chainId!;
-                        widget.rpc = signedData.rpcUrl!;
+                        widget.chainId = signedData.chainId;
+                        widget.rpc = signedData.rpcUrl;
                         await _sendCustomResponse(controller, initString);
                       }
                     }).onError((e, stackTrace) {
