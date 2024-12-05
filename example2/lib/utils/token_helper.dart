@@ -24,11 +24,11 @@ class TokenHelper {
       String privateKey, int? chainId, JsTransactionObject data) async {
     // int maxGas = int.parse(gasPrice) * int.parse(gasLimit);
     final transaction = Transaction(
-      nonce: int.tryParse(data.nonce ?? ''),
-      gasPrice: EtherAmount.inWei(BigInt.from(int.parse(data.gasPrice ?? ''))),
-      maxGas: int.parse(data.gasLimit ?? ''),
+      nonce: hexToDartInt(data.nonce ?? ''),
+      gasPrice: EtherAmount.inWei(hexToInt(data.gasPrice ?? '')),
+      maxGas: hexToDartInt(data.gasLimit ?? ''),
       to: EthereumAddress.fromHex(data.to ?? ''),
-      value: EtherAmount.inWei(BigInt.parse(data.value ?? '')),
+      value: EtherAmount.inWei(hexToInt(data.value ?? '')),
       data: Uint8List.fromList(utf8.encode(data.data ?? '0x0')),
     );
     final credentials = EthPrivateKey.fromHex(privateKey);
@@ -36,5 +36,12 @@ class TokenHelper {
     final signature = await client.signTransaction(credentials, transaction,
         chainId: chainId);
     return "0x${bytesToHex(signature)}";
+  }
+
+  static double calcGasFee(String gasLimitHex, String gasPriceHex) {
+    BigInt gasLimit = hexToInt(gasLimitHex);
+    BigInt gasPrice = hexToInt(gasPriceHex);
+    BigInt gasFee = gasLimit * gasPrice;
+    return gasFee / BigInt.from(10).pow(18);
   }
 }

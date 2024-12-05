@@ -5,7 +5,9 @@ import 'package:example2/widgets/custom_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_injected_web3/flutter_injected_web3.dart';
+import 'package:http/http.dart';
 import 'package:web3dart/crypto.dart';
+import 'package:web3dart/web3dart.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 void main() {
@@ -178,24 +180,36 @@ class MainAppState extends State<MainApp> {
   }
 
   // 交易确认处理逻辑 //
-  double calcGasFee(String gasLimitHex, String gasPriceHex) {
-    int gasLimit = int.parse(gasLimitHex.substring(2), radix: 16);
-    int gasPrice = int.parse(gasPriceHex.substring(2), radix: 16);
-    BigInt gasFee = BigInt.from(gasLimit) * BigInt.from(gasPrice);
-    return gasFee / BigInt.from(10).pow(18);
-  }
-
   Future<String> processEthTransaction(
       JsTransactionObject data, int chainId) async {
     double amount = BigInt.parse(data.value ?? '') / BigInt.from(10).pow(18);
     data.from = currentNetwork.address;
-    data.nonce = '0x3d';
-    data.gasLimit = '0xea60';
-    data.gasPrice = '0x22417c411';
+    final client = Web3Client(currentNetwork.rpcUrl, Client());
+    // data.nonce = '0x3d'; // 接口返回
+    final nonce =
+        await client.getTransactionCount(EthereumAddress.fromHex(data.from!));
+    data.nonce = nonce.toRadixString(16);
+    final gasPrice = await client.getGasPrice();
+    String gasPriceHex = gasPrice.getInWei.toRadixString(16);
+    data.gasPrice = gasPriceHex;
+    // final gasLimit = await client.estimateGas(
+    //   sender: EthereumAddress.fromHex(data.from!),
+    //   to: EthereumAddress.fromHex(data.to!),
+    //   value: EtherAmount.inWei(BigInt.parse(data.value ?? '')),
+    //   amountOfGas: BigInt.zero,
+    //   gasPrice: gasPrice,
+    //   maxPriorityFeePerGas: EtherAmount.zero(),
+    //   maxFeePerGas: EtherAmount.zero(),
+    //   data: Uint8List.fromList(utf8.encode(data.data ?? '0x0')),
+    // );
+    // final gasLimitHex = gasLimit.toRadixString(16);
+    const gasLimitHex = '0xea60'; // 接口返回
+    data.gasLimit = gasLimitHex;
+    double gasFee = TokenHelper.calcGasFee(gasLimitHex, gasPriceHex);
     final message = """
         icon: ${dappModel.icon}\n
         title: ${dappModel.title}\n
-        网络费: ${calcGasFee(data.gasLimit!, data.gasPrice!)} ETH \n
+        网络费: $gasFee ETH \n
         从: ${data.from} \n
         至: ${data.to} \n
         交易数额: $amount ETH
@@ -215,8 +229,13 @@ class MainAppState extends State<MainApp> {
       JsTransactionObject data, int chainId) async {
     data.from = currentNetwork.address;
     data.nonce = '0x3d';
-    data.gasLimit = '0xea60';
-    data.gasPrice = '0x22417c411';
+    final client = Web3Client(currentNetwork.rpcUrl, Client());
+    final gasPrice = await client.getGasPrice();
+    String gasPriceHex = gasPrice.getInWei.toRadixString(16);
+    data.gasPrice = gasPriceHex;
+    const gasLimitHex = '0xea60'; // 接口返回
+    data.gasLimit = gasLimitHex;
+    double gasFee = TokenHelper.calcGasFee(data.gasLimit!, data.gasPrice!);
     String recipient = "0x${data.data!.substring(34, 74)}";
     BigInt decimalValue =
         BigInt.parse(data.data!.substring(74, 138), radix: 16);
@@ -224,7 +243,7 @@ class MainAppState extends State<MainApp> {
     final message = """
         icon: ${dappModel.icon}\n
         title: ${dappModel.title}\n
-        网络费: ${calcGasFee(data.gasLimit!, data.gasPrice!)} ETH \n
+        网络费: $gasFee ETH \n
         从: ${data.from} \n
         转账地址: $recipient \n
         转账金额: $amount DAI\n
@@ -245,15 +264,20 @@ class MainAppState extends State<MainApp> {
   Future<String> processTransactionApprove(
       JsTransactionObject data, int chainId) async {
     data.from = currentNetwork.address;
-    data.nonce = '0x3d';
-    data.gasLimit = '0xea60';
-    data.gasPrice = '0x22417c411';
+    data.nonce = '0x3d'; // 接口返回
+    final client = Web3Client(currentNetwork.rpcUrl, Client());
+    final gasPrice = await client.getGasPrice();
+    String gasPriceHex = gasPrice.getInWei.toRadixString(16);
+    data.gasPrice = gasPriceHex;
+    const gasLimitHex = '0xea60'; // 接口返回
+    data.gasLimit = gasLimitHex;
+    double gasFee = TokenHelper.calcGasFee(data.gasLimit!, data.gasPrice!);
     String spender = "0x${data.data!.substring(34, 74)}";
     int allowance = int.parse(data.data!.substring(74, 138), radix: 16);
     final message = """
         icon: ${dappModel.icon}\n
         title: ${dappModel.title}\n
-        网络费: ${calcGasFee(data.gasLimit!, data.gasPrice!)} ETH \n
+        网络费: $gasFee ETH \n
         从: ${data.from} \n
         授权地址: $spender \n
         授权数额: $allowance \n
@@ -273,10 +297,19 @@ class MainAppState extends State<MainApp> {
 
   Future<String> processContractInteraction(
       JsTransactionObject data, int chainId) async {
+    data.from = currentNetwork.address;
+    data.nonce = '0x3d'; // 接口返回
+    final client = Web3Client(currentNetwork.rpcUrl, Client());
+    final gasPrice = await client.getGasPrice();
+    String gasPriceHex = gasPrice.getInWei.toRadixString(16);
+    data.gasPrice = gasPriceHex;
+    const gasLimitHex = '0xea60'; // 接口返回
+    data.gasLimit = gasLimitHex;
+    double gasFee = TokenHelper.calcGasFee(data.gasLimit!, data.gasPrice!);
     final message = """
         icon: ${dappModel.icon}\n
         title: ${dappModel.title}\n
-        网络费: 0.0000023 ETH \n
+        网络费: $gasFee ETH \n
         从: ${data.from} \n
         合约地址: ${data.to} \n
         交易数额: ${data.value} ETH\n
