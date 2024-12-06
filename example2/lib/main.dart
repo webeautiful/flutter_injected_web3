@@ -186,9 +186,11 @@ class MainAppState extends State<MainApp> {
     data.from = currentNetwork.address;
     final client = Web3Client(currentNetwork.rpcUrl, Client());
     // data.nonce = '0x3d'; // 接口返回
-    final nonce =
-        await client.getTransactionCount(EthereumAddress.fromHex(data.from!));
-    data.nonce = nonce.toRadixString(16);
+    if (data.nonce == null) {
+      final nonce =
+          await client.getTransactionCount(EthereumAddress.fromHex(data.from!));
+      data.nonce = nonce.toRadixString(16);
+    }
     final gasPrice = await client.getGasPrice();
     String gasPriceHex = gasPrice.getInWei.toRadixString(16);
     data.gasPrice = gasPriceHex;
@@ -228,8 +230,13 @@ class MainAppState extends State<MainApp> {
   Future<String> processTokenTransaction(
       JsTransactionObject data, int chainId) async {
     data.from = currentNetwork.address;
-    data.nonce = '0x3d';
     final client = Web3Client(currentNetwork.rpcUrl, Client());
+    // data.nonce = '0x3d'; // 接口返回
+    if (data.nonce == null) {
+      final nonce =
+          await client.getTransactionCount(EthereumAddress.fromHex(data.from!));
+      data.nonce = nonce.toRadixString(16);
+    }
     final gasPrice = await client.getGasPrice();
     String gasPriceHex = gasPrice.getInWei.toRadixString(16);
     data.gasPrice = gasPriceHex;
@@ -264,8 +271,13 @@ class MainAppState extends State<MainApp> {
   Future<String> processTransactionApprove(
       JsTransactionObject data, int chainId) async {
     data.from = currentNetwork.address;
-    data.nonce = '0x3d'; // 接口返回
     final client = Web3Client(currentNetwork.rpcUrl, Client());
+    // data.nonce = '0x3d'; // 接口返回
+    if (data.nonce == null) {
+      final nonce =
+          await client.getTransactionCount(EthereumAddress.fromHex(data.from!));
+      data.nonce = nonce.toRadixString(16);
+    }
     final gasPrice = await client.getGasPrice();
     String gasPriceHex = gasPrice.getInWei.toRadixString(16);
     data.gasPrice = gasPriceHex;
@@ -298,8 +310,13 @@ class MainAppState extends State<MainApp> {
   Future<String> processContractInteraction(
       JsTransactionObject data, int chainId) async {
     data.from = currentNetwork.address;
-    data.nonce = '0x3d'; // 接口返回
     final client = Web3Client(currentNetwork.rpcUrl, Client());
+    // data.nonce = '0x3d'; // 接口返回
+    if (data.nonce == null) {
+      final nonce =
+          await client.getTransactionCount(EthereumAddress.fromHex(data.from!));
+      data.nonce = nonce.toRadixString(16);
+    }
     final gasPrice = await client.getGasPrice();
     String gasPriceHex = gasPrice.getInWei.toRadixString(16);
     data.gasPrice = gasPriceHex;
