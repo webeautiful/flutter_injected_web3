@@ -63,6 +63,15 @@ class MyDialog extends StatelessWidget {
     );
   }
 
+  static Future<void> showError(Widget content) async {
+    final context = getGlobalContext();
+    return showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(title: const Text('错误'), content: content);
+        });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(

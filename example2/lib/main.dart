@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:example2/utils/token_helper.dart';
 import 'package:example2/widgets/custom_dialog.dart';
@@ -64,7 +65,7 @@ class MainAppState extends State<MainApp> {
       for (var config in ethereumConfigs) config.chainId: config,
     };
 
-    currentNetwork = ethereumConfigs[0];
+    currentNetwork = ethereumConfigs[1];
     super.initState();
   }
 
@@ -79,12 +80,15 @@ class MainAppState extends State<MainApp> {
         signPersonalMessage: handleSignPersonalMessage,
         signTransaction: handleSignTransaction,
         addEthereumChain: handleChangeNetwork,
-        isDebug: true,
+        isDebug: false,
         // initialUrlRequest: URLRequest(
         //   url: WebUri('https://appkit-lab.reown.com/library/ethers-all/'),
         // ), //https://pancakeswap.finance/
+        // initialUrlRequest: URLRequest(
+        //   url: WebUri('https://0xsequence.github.io/demo-dapp-web3modal/'),
+        // ),
         initialUrlRequest: URLRequest(
-          url: WebUri('https://0xsequence.github.io/demo-dapp-web3modal/'),
+          url: WebUri('https://www.clicksx.im/web3_demo/'),
         ),
         chainId: currentNetwork.chainId,
         rpc: currentNetwork.rpcUrl,
@@ -184,8 +188,8 @@ class MainAppState extends State<MainApp> {
       JsTransactionObject data, int chainId) async {
     double amount = BigInt.parse(data.value ?? '') / BigInt.from(10).pow(18);
     data.from = currentNetwork.address;
+    // data.from = '0xa83114A443dA1CecEFC50368531cACE9F37fCCcb';
     final client = Web3Client(currentNetwork.rpcUrl, Client());
-    // data.nonce = '0x3d'; // 接口返回
     if (data.nonce == null) {
       final nonce =
           await client.getTransactionCount(EthereumAddress.fromHex(data.from!));
@@ -194,19 +198,27 @@ class MainAppState extends State<MainApp> {
     final gasPrice = await client.getGasPrice();
     String gasPriceHex = gasPrice.getInWei.toRadixString(16);
     data.gasPrice = gasPriceHex;
-    // final gasLimit = await client.estimateGas(
-    //   sender: EthereumAddress.fromHex(data.from!),
-    //   to: EthereumAddress.fromHex(data.to!),
-    //   value: EtherAmount.inWei(BigInt.parse(data.value ?? '')),
-    //   amountOfGas: BigInt.zero,
-    //   gasPrice: gasPrice,
-    //   maxPriorityFeePerGas: EtherAmount.zero(),
-    //   maxFeePerGas: EtherAmount.zero(),
-    //   data: Uint8List.fromList(utf8.encode(data.data ?? '0x0')),
-    // );
-    // final gasLimitHex = gasLimit.toRadixString(16);
-    const gasLimitHex = '0xea60'; // 接口返回
-    data.gasLimit = gasLimitHex;
+    late BigInt gasLimit;
+    String? errorMsg;
+    try {
+      gasLimit = await client.estimateGas(
+        sender: EthereumAddress.fromHex(data.from!),
+        to: EthereumAddress.fromHex(data.to!),
+        value: EtherAmount.inWei(BigInt.parse(data.value ?? '')),
+        data: data.data != null
+            ? Uint8List.fromList(utf8.encode(data.data!))
+            : Uint8List(0),
+      );
+    } catch (e) {
+      errorMsg = e.toString();
+    }
+    if (errorMsg != null) {
+      MyDialog.showError(Text(errorMsg));
+      throw errorMsg;
+    }
+    final gasLimitHex = gasLimit.toRadixString(16);
+    // const gasLimitHex = '0xea60'; // 接口返回
+    // data.gasLimit = gasLimitHex;
     double gasFee = TokenHelper.calcGasFee(gasLimitHex, gasPriceHex);
     final message = """
         icon: ${dappModel.icon}\n
@@ -246,7 +258,8 @@ class MainAppState extends State<MainApp> {
     String recipient = "0x${data.data!.substring(34, 74)}";
     BigInt decimalValue =
         BigInt.parse(data.data!.substring(74, 138), radix: 16);
-    double amount = decimalValue / BigInt.from(10).pow(18);
+    int decimals = 18; // 接口返回
+    double amount = decimalValue / BigInt.from(10).pow(decimals);
     final message = """
         icon: ${dappModel.icon}\n
         title: ${dappModel.title}\n
