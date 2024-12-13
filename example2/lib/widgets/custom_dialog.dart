@@ -63,12 +63,16 @@ class MyDialog extends StatelessWidget {
     );
   }
 
-  static Future<void> showError(Widget content) async {
+  static Future<void> showError(String content) async {
     final context = getGlobalContext();
     return showDialog(
         context: context,
         builder: (context) {
-          return AlertDialog(title: const Text('错误'), content: content);
+          return AlertDialog(
+              title: const Center(
+                child: Text('错误'),
+              ),
+              content: Text(content));
         });
   }
 
