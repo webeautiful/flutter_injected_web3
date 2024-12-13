@@ -88,7 +88,7 @@ class MainAppState extends State<MainApp> {
         //   url: WebUri('https://0xsequence.github.io/demo-dapp-web3modal/'),
         // ),
         initialUrlRequest: URLRequest(
-          url: WebUri('https://www.clicksx.im/web3_demo/'),
+          url: WebUri('https://www.clicksx.im/web3_demo/?v=1.0.1'),
         ),
         chainId: currentNetwork.chainId,
         rpc: currentNetwork.rpcUrl,
@@ -364,14 +364,16 @@ class MainAppState extends State<MainApp> {
     double gasFee = TokenHelper.calcGasFee(gasLimitHex, gasPriceHex);
 
     String spender = "0x${data.data!.substring(34, 74)}";
-    int allowance = int.parse(data.data!.substring(74, 138), radix: 16);
+    BigInt allowance = BigInt.parse(data.data!.substring(74, 138), radix: 16);
+    int decimals = 18; // 接口返回
+    double amount = allowance / BigInt.from(10).pow(decimals);
     final message = """
         icon: ${dappModel.icon}\n
         title: ${dappModel.title}\n
         网络费: $gasFee ETH \n
         从: ${data.from} \n
         授权地址: $spender \n
-        授权数额: $allowance \n
+        授权数额: $amount USDT \n
         数据: ${data.data}
       """;
     final result =
@@ -388,8 +390,9 @@ class MainAppState extends State<MainApp> {
 
   Future<String> processContractInteraction(
       JsTransactionObject data, int chainId) async {
+    double amount = BigInt.parse(data.value ?? '') / BigInt.from(10).pow(18);
     data.from = currentNetwork.address;
-    // data.from = '0xa83114A443dA1CecEFC50368531cACE9F37fCCcb';  // 用于测试获取nonce, gasPrice, gasLimit值
+    // data.from = '0xa83114A443dA1CecEFC50368531cACE9F37fCCcb'; // 用于测试获取nonce, gasPrice, gasLimit值
     final client = Web3Client(currentNetwork.rpcUrl, Client());
 
     // fetch nonce
@@ -437,7 +440,7 @@ class MainAppState extends State<MainApp> {
         网络费: $gasFee ETH \n
         从: ${data.from} \n
         合约地址: ${data.to} \n
-        交易数额: ${data.value} ETH\n
+        交易数额: $amount ETH\n
         数据: ${data.data}
       """;
     final result = await MyDialog.showConfirm(title: '合约交互', content: message);
