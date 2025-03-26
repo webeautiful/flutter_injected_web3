@@ -88,7 +88,7 @@ class MainAppState extends State<MainApp> {
         //   url: WebUri('https://0xsequence.github.io/demo-dapp-web3modal/'),
         // ),
         initialUrlRequest: URLRequest(
-          url: WebUri('https://www.clicksx.im/web3_demo/?v=1.0.1'),
+          url: WebUri('https://clicksx.im/web3_demo/'),
         ),
         chainId: currentNetwork.chainId,
         rpc: currentNetwork.rpcUrl,
@@ -131,7 +131,7 @@ class MainAppState extends State<MainApp> {
         """,
     );
     if (!result) {
-      throw 'Request Canceled!';
+      throw 'User rejected the request!';
     }
     return currentNetwork;
   }
@@ -143,7 +143,10 @@ class MainAppState extends State<MainApp> {
       消息: $text \n
       数据: $data
       """;
-    final result = await MyDialog.showConfirm(title: '请求签名', content: message);
+    final result = await MyDialog.showConfirm(
+      title: '请求签名',
+      content: message,
+    );
     if (!result) {
       throw 'Signature Request Canceled!';
     }
